@@ -3,7 +3,13 @@
 # vào tab Actions -> "Build Nova Launcher" -> Run workflow. Tải APK ở mục Artifacts.
 name: Build Nova Launcher
 
+permissions:
+  contents: read
+
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       launcher_ref:
@@ -21,9 +27,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       - name: Cài NDK + Ninja
         run: |
+          yes | sdkmanager --licenses
           sdkmanager "platforms;android-28" "ndk;28.2.13676358"
           sudo apt-get update && sudo apt-get install -y ninja-build
       - name: Build Nova Client (.levipack, arm64-v8a)
@@ -47,7 +54,7 @@ jobs:
       - name: Clone LeviLaunchroid (kèm submodule preloader + libHttpClient)
         run: |
           git clone --recursive --depth 1 --shallow-submodules \
-            --branch "${{ inputs.launcher_ref }}" \
+            --branch "${{ inputs.launcher_ref || 'v1.5.27' }}" \
             https://github.com/LiteLDev/LeviLaunchroid launcher
 
       - uses: actions/download-artifact@v4
@@ -58,8 +65,8 @@ jobs:
       - name: Đổi tên, đổi id, nhúng Nova Client
         run: |
           python3 nova/launcher-fork/apply_nova_branding.py launcher \
-            --name "${{ inputs.app_name }}" \
-            --app-id "${{ inputs.app_id }}" \
+            --name "${{ inputs.app_name || 'Nova Launcher' }}" \
+            --app-id "${{ inputs.app_id || 'com.nova.launcher' }}" \
             --levipack "$(ls levipack/*.levipack | head -n1)"
 
       # Launcher dùng plugin Firebase nên bắt buộc có google-services.json. Repo gốc cũng dùng file
@@ -93,9 +100,12 @@ jobs:
           distribution: temurin
           java-version: "21"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
+
       - name: Cài SDK/NDK/CMake
-        run: sdkmanager "platforms;android-36" "ndk;28.2.13676358" "cmake;3.22.1"
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-36" "ndk;28.2.13676358" "cmake;3.22.1"
 
       - name: Build APK (debug – tự ký bằng debug key, cài được ngay)
         working-directory: launcher
